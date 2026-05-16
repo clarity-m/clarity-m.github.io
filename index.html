@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earth ↔ Erid Converter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #08162c;
+      --surface: #152a48;
+      --border: #08162c;
+      --text: #c3d4e6;
+      --muted: #73879e;
+      --accent: #96c5f7;
+      --erid: #e8c44c;
+      --error: #f85149;
+      --ok: #3fb950;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      padding: 2rem 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; }
+    header p { color: var(--muted); margin-top: 0.3rem; font-size: 0.9rem; }
+
+    /* ── Nav bar (tabs + flanking legends) ── */
+    nav {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      gap: 1.5rem;
+      padding: 0 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .nav-legend {
+      display: flex;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .nav-legend .np {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0.58rem;
+      gap: 0.1rem;
+      border-right: 1px solid var(--border);
+    }
+    .nav-legend .np:last-child { border-right: none; }
+    .nav-legend .np .g { font-family: var(--font-mono); font-size: 0.95rem; color: var(--erid); line-height: 1; }
+    .nav-legend .np .n { font-size: 0.55rem; color: var(--muted); font-family: var(--font-mono); line-height: 1; }
+    .tab-group { display: flex; gap: 0.15rem; align-items: center; padding: 0.5rem 0; }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 0.4rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-radius: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab-btn:hover  { color: var(--text); background: #21262d; }
+    .tab-btn.active { background: #08162c; color: var(--text); font-weight: 500; }
+    @media (max-width: 640px) { .nav-legend { display: none; } }
+
+    /* ── Main ── */
+    main {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin: 1.5rem 0 0.6rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      padding: 1.2rem;
+      margin-bottom: 0.9rem;
+    }
+    .card-title { font-size: 0.92rem; font-weight: 600; margin-bottom: 1rem; }
+
+    /* ── Form inputs ── */
+    .input-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 0.25rem; }
+    .field label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    input[type="text"], input[type="number"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.7rem;
+      border-radius: 0;
+      font-size: 0.95rem;
+      font-family: var(--font-mono);
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus { outline: none; border-color: var(--accent); }
+    input.erid { font-size: 1.05rem; }
+    input.invalid { border-color: var(--error) !important; }
+    select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.7rem;
+      border-radius: 0;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    /* ── Error messages ── */
+    .error-msg { font-size: 0.78rem; color: var(--error); margin-top: 0.4rem; min-height: 1.1em; }
+
+    /* ── Eridian keyboards ── */
+    .erid-keyboard { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.6rem; }
+    .erid-key {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--erid);
+      padding: 0.28rem 0.6rem;
+      border-radius: 0;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: background 0.12s;
+    }
+    .erid-key:hover { background: var(--border); }
+    .erid-key .hint { font-size: 0.62rem; color: var(--muted); }
+
+    /* ── Result boxes ── */
+    .result {
+      margin-top: 0.9rem;
+      padding: 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      display: none;
+    }
+    .result.show { display: block; }
+    .result-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .result-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .result-big  { font-family: var(--font-mono); font-size: 1.5rem; color: var(--erid); font-weight: 600; word-break: break-all; }
+    .result-main { font-family: var(--font-mono); font-size: 1.1rem; color: var(--text); }
+    .result-sub  { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ── Copy button ── */
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 0;
+      padding: 0.22rem 0.42rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover  { color: var(--text); border-color: var(--text); }
+    .copy-btn.copied { color: var(--ok);   border-color: var(--ok); }
+
+    /* ── Date grid ── */
+    .date-grid {
+      display: grid;
+      gap: 0.1rem 1.4rem;
+      width: fit-content;
+    }
+    .date-grid.cols5 { grid-template-columns: repeat(5, auto); }
+    .dg-val { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 600; color: var(--text); }
+    .dg-val.erid { color: var(--erid); }
+    .dg-lbl { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+    /* ── Breakdown details ── */
+    .breakdown { margin-top: 0.65rem; }
+    .breakdown summary {
+      font-size: 0.72rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      padding: 0.15rem 0;
+    }
+    .breakdown summary::-webkit-details-marker { display: none; }
+    .breakdown summary::before { content: '▸ '; }
+    .breakdown[open] summary::before { content: '▾ '; }
+    .breakdown-section { margin-top: 0.65rem; }
+    .breakdown-label {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.3rem;
+    }
+    .breakdown .dg-val { font-size: 1.05rem; }
+
+    /* ── Info boxes ── */
+    details.info {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0;
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 1rem;
+      font-size: 0.87rem;
+      line-height: 1.6;
+    }
+    details.info summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+      user-select: none;
+      list-style: none;
+    }
+    details.info summary::-webkit-details-marker { display: none; }
+    details.info summary::before { content: '▸ '; }
+    details.info[open] summary::before { content: '▾ '; }
+    details.info p { margin-top: 0.5rem; color: var(--muted); }
+    details.info code { font-family: var(--font-mono); color: var(--erid); }
+
+/* ── Toggle row ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+      cursor: pointer;
+      user-select: none;
+      width: fit-content;
+    }
+    .toggle-row input { cursor: pointer; }
+
+    @media (max-width: 560px) {
+      .input-row { flex-direction: column; }
+      .input-row .field, .input-row input, .input-row select { width: 100%; }
+      .np { padding: 0.4rem 0.65rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Earth ↔ Erid Unit Converter</h1>
+  <p>Based on <em>Project Hail Mary</em> by Andy Weir</p>
+</header>
+
+<nav aria-label="Main navigation">
+  <div class="nav-legend" aria-hidden="true">
+    <div class="np"><span class="g">ℓ</span><span class="n">0</span></div>
+    <div class="np"><span class="g">I</span><span class="n">1</span></div>
+    <div class="np"><span class="g">V</span><span class="n">2</span></div>
+    <div class="np"><span class="g">λ</span><span class="n">3</span></div>
+    <div class="np"><span class="g">+</span><span class="n">4</span></div>
+    <div class="np"><span class="g">Ɐ</span><span class="n">5</span></div>
+  </div>
+  <div class="tab-group">
+    <button class="tab-btn active" onclick="showTab('numbers',this)">Numbers</button>
+    <button class="tab-btn"        onclick="showTab('time',this)">Time</button>
+    <button class="tab-btn"        onclick="showTab('weight',this)">Weight</button>
+  </div>
+  <div class="nav-legend" aria-hidden="true">
+    <div class="np"><span class="g">ℓ</span><span class="n">0</span></div>
+    <div class="np"><span class="g">I</span><span class="n">1</span></div>
+    <div class="np"><span class="g">V</span><span class="n">2</span></div>
+    <div class="np"><span class="g">λ</span><span class="n">3</span></div>
+    <div class="np"><span class="g">+</span><span class="n">4</span></div>
+    <div class="np"><span class="g">Ɐ</span><span class="n">5</span></div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ═══════════════════════════════ NUMBERS TAB ═══════════════════════════════ -->
+  <div id="tab-numbers" class="tab-content active">
+
+    <details class="info">
+      <summary>About Eridian numerals</summary>
+      <p>Eridians use a <strong>base-6</strong> number system. Where humans count 0, 1, 2 … 9, Eridians count <code>ℓ I V λ + Ɐ</code> and roll over, the same way decimal rolls at 10.</p>
+      <p>This page also includes base conversions. If you'd like to do math in base-6, convert the numbers to base-10, perform the operations, and then convert the final result backto base-6. </p>
+    </details>
+
+    <p class="section-label">Earth → Erid</p>
+    <div class="card">
+      <div class="card-title">Base-10 → Eridian</div>
+      <div class="input-row">
+        <div class="field">
+          <label>Earth number (base 10)</label>
+          <input type="text" id="n-b10e-in" style="width:200px" placeholder="e.g. 113.5" oninput="cvtB10ToErid()">
+        </div>
+      </div>
+      <div class="error-msg" id="n-b10e-err"></div>
+      <div id="n-b10e-res" class="result">
+        <div class="result-top">
+          <span class="result-label">Eridian</span>
+          <button class="copy-btn" onclick="copyResult(this,'n-b10e-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div id="n-b10e-big" class="result-big"></div>
+        <span id="n-b10e-copy" hidden></span>
+      </div>
+    </div>
+
+    <p class="section-label">Erid → Earth</p>
+    <div class="card">
+      <div class="card-title">Eridian → Base-10</div>
+      <div class="input-row">
+        <div class="field">
+          <label>Eridian number</label>
+          <input type="text" id="n-erid-in" class="erid" style="width:200px" placeholder="e.g. λℓɐ•λ" oninput="cvtEridToB10()">
+        </div>
+      </div>
+      <div class="erid-keyboard">
+        <button class="erid-key" onclick="insertChar('n-erid-in','ℓ',cvtEridToB10)">ℓ<span class="hint">0</span></button>
+        <button class="erid-key" onclick="insertChar('n-erid-in','I',cvtEridToB10)">I<span class="hint">1</span></button>
+        <button class="erid-key" onclick="insertChar('n-erid-in','V',cvtEridToB10)">V<span class="hint">2</span></button>
+        <button class="erid-key" onclick="insertChar('n-erid-in','λ',cvtEridToB10)">λ<span class="hint">3</span></button>
+        <button class="erid-key" onclick="insertChar('n-erid-in','+',cvtEridToB10)">+<span class="hint">4</span></button>
+        <button class="erid-key" onclick="insertChar('n-erid-in','Ɐ',cvtEridToB10)">Ɐ<span class="hint">5</span></button>
+        <button class="erid-key" onclick="insertChar('n-erid-in','•',cvtEridToB10)">•<span class="hint">.</span></button>
+      </div>
+      <div class="error-msg" id="n-erid-err"></div>
+      <div id="n-erid-res" class="result">
+        <div class="result-top">
+          <span class="result-label">Base-10 (Earth)</span>
+          <button class="copy-btn" onclick="copyResult(this,'n-erid-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div id="n-erid-main" class="result-main"></div>
+        <span id="n-erid-copy" hidden></span>
+      </div>
+    </div>
+
+    <p class="section-label">Base conversion</p>
+    <div class="card">
+      <div class="card-title">Base-10 → Base-6</div>
+      <div class="input-row">
+        <div class="field">
+          <label>Base-10 number</label>
+          <input type="text" id="n-b6-in" style="width:200px" placeholder="e.g. 670.6" oninput="cvtB10ToB6()">
+        </div>
+      </div>
+      <div class="error-msg" id="n-b6-err"></div>
+      <div id="n-b6-res" class="result">
+        <div class="result-top">
+          <span class="result-label">Base-6</span>
+          <button class="copy-btn" onclick="copyResult(this,'n-b6-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div id="n-b6-main" class="result-main"></div>
+        <span id="n-b6-copy" hidden></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Base-6 → Base-10</div>
+      <div class="input-row">
+        <div class="field">
+          <label>Base-6 number</label>
+          <input type="text" id="n-b10-in" style="width:200px" placeholder="e.g. 31.1" oninput="cvtB6ToB10()">
+        </div>
+      </div>
+      <div class="error-msg" id="n-b10-err"></div>
+      <div id="n-b10-res" class="result">
+        <div class="result-top">
+          <span class="result-label">Base-10</span>
+          <button class="copy-btn" onclick="copyResult(this,'n-b10-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div id="n-b10-main" class="result-main"></div>
+        <span id="n-b10-copy" hidden></span>
+      </div>
+    </div>
+
+  </div><!-- /tab-numbers -->
+
+
+  <!-- ═══════════════════════════════ TIME TAB ═══════════════════════════════ -->
+  <div id="tab-time" class="tab-content">
+
+    <details class="info">
+      <summary>About Eridian time</summary>
+      <p> The planet Erid rotates fast about its axis, and orbits much closer to 40 Eridani A than Earth orbits the sun. As such, days and years on Erid are shorter than ours.</p>
+      <p>An Eridian solar day is 18,360 Earth seconds, or <strong>~5.1 hours</strong>. An Eridian solar year is <strong>199 Erid days</strong> or ~42.25 Earth days. The Eridian second is <strong>2.366 Earth seconds</strong> long.</p>
+      <p>Eridians cleanly divide their day into <code>Iℓℓℓℓℓ</code> (7,776) erid-seconds. These provide close analogues to Earth units of time: there are <code>Iℓ</code> (6) erid-hours in a Eridian day, <code>Iℓℓ</code> (36) centihours per erid-hour, and <code>Iℓℓ</code> (36) erid-seconds per centihour. An erid-hour ≈ 51 Earth minutes; a centihour ≈ 85 Earth seconds.</p>
+      <p>Because each subdivision is a power of 6, the clock digits concatenate directly into total erid-seconds. Reading <code>H:CC:SS</code> left to right gives the 5-digit base-6 total — for example, <code>V:Iλ:Vℓ</code> (V erid-hr + Iλ centihrs + Vℓ erid-secs) = <code>VIλVℓ</code> total erid-seconds.</p>
+    </details>
+
+    <p class="section-label">Earth → Erid</p>
+    <div class="card">
+      <div class="card-title">Earth time → Eridian time</div>
+      <div class="input-row">
+        <div class="field"><label>Years</label>
+          <input type="number" id="te-y" value="0" min="0" style="width:90px" oninput="cvtEarthToErid()"></div>
+        <div class="field"><label>Days</label>
+          <input type="number" id="te-d" value="0" min="0" style="width:90px" oninput="cvtEarthToErid()"></div>
+        <div class="field"><label>Hours</label>
+          <input type="number" id="te-h" value="0" min="0" style="width:90px" oninput="cvtEarthToErid()"></div>
+        <div class="field"><label>Minutes</label>
+          <input type="number" id="te-m" value="0" min="0" style="width:90px" oninput="cvtEarthToErid()"></div>
+        <div class="field"><label>Seconds</label>
+          <input type="number" id="te-s" value="0" min="0" style="width:90px" oninput="cvtEarthToErid()"></div>
+      </div>
+      <div id="te-res" class="result">
+        <div class="result-top">
+          <span class="result-label">Eridian date / time</span>
+          <button class="copy-btn" onclick="copyResult(this,'te-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div class="date-grid cols5" id="te-grid">
+          <span class="dg-val erid" id="te-gyr"></span>
+          <span class="dg-val erid" id="te-gdy"></span>
+          <span class="dg-val erid" id="te-ghr"></span>
+          <span class="dg-val erid" id="te-gcc"></span>
+          <span class="dg-val erid" id="te-gsc"></span>
+          <span class="dg-lbl">erid-yr</span>
+          <span class="dg-lbl">erid-day</span>
+          <span class="dg-lbl">erid-hr</span>
+          <span class="dg-lbl">centihr</span>
+          <span class="dg-lbl">erid-sec</span>
+        </div>
+        <span id="te-copy" hidden></span>
+        <details class="breakdown">
+          <summary>Show details</summary>
+          <div class="breakdown-section">
+            <span class="breakdown-label">base-10</span>
+            <div class="date-grid cols5">
+              <span class="dg-val" id="te-b10-yr"></span>
+              <span class="dg-val" id="te-b10-dy"></span>
+              <span class="dg-val" id="te-b10-hr"></span>
+              <span class="dg-val" id="te-b10-cc"></span>
+              <span class="dg-val" id="te-b10-sc"></span>
+              <span class="dg-lbl">erid-yr</span>
+              <span class="dg-lbl">erid-day</span>
+              <span class="dg-lbl">erid-hr</span>
+              <span class="dg-lbl">centihr</span>
+              <span class="dg-lbl">erid-sec</span>
+            </div>
+          </div>
+          <div class="breakdown-section">
+            <span class="breakdown-label">base-6</span>
+            <div class="date-grid cols5">
+              <span class="dg-val" id="te-b6-yr"></span>
+              <span class="dg-val" id="te-b6-dy"></span>
+              <span class="dg-val" id="te-b6-hr"></span>
+              <span class="dg-val" id="te-b6-cc"></span>
+              <span class="dg-val" id="te-b6-sc"></span>
+              <span class="dg-lbl">erid-yr</span>
+              <span class="dg-lbl">erid-day</span>
+              <span class="dg-lbl">erid-hr</span>
+              <span class="dg-lbl">centihr</span>
+              <span class="dg-lbl">erid-sec</span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <p class="section-label">Erid → Earth</p>
+    <div class="card">
+      <div class="card-title">Eridian time → Earth time</div>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="erid-toggle" onchange="toggleEridMode()">
+        Use Eridian numeral input
+      </label>
+
+      <!-- Base-10 inputs -->
+      <div id="erid-b10-inputs">
+        <div class="input-row">
+          <div class="field"><label>Erid-years</label>
+            <input type="number" id="ti-y" value="0" min="0" style="width:100px" oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Erid-days</label>
+            <input type="number" id="ti-d" value="0" min="0" style="width:100px" oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Erid-hours</label>
+            <input type="number" id="ti-h" value="0" min="0" max="5"  style="width:100px" oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Centihours</label>
+            <input type="number" id="ti-c" value="0" min="0" max="35" style="width:100px" oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Erid-seconds</label>
+            <input type="number" id="ti-s" value="0" min="0" max="35" style="width:100px" oninput="cvtEridToEarth()"></div>
+        </div>
+      </div>
+
+      <!-- Eridian numeral inputs -->
+      <div id="erid-erid-inputs" style="display:none">
+        <div class="input-row">
+          <div class="field"><label>Erid-years</label>
+            <input type="text" id="ti-y-e" class="erid" style="width:110px" placeholder="e.g. Iℓℓ" oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Erid-days</label>
+            <input type="text" id="ti-d-e" class="erid" style="width:110px" placeholder="e.g. ℓ"   oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Erid-hours</label>
+            <input type="text" id="ti-h-e" class="erid" style="width:110px" placeholder="e.g. Ɐ"   oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Centihours</label>
+            <input type="text" id="ti-c-e" class="erid" style="width:110px" placeholder="e.g. I+"  oninput="cvtEridToEarth()"></div>
+          <div class="field"><label>Erid-seconds</label>
+            <input type="text" id="ti-s-e" class="erid" style="width:110px" placeholder="e.g. Iℓ"  oninput="cvtEridToEarth()"></div>
+        </div>
+        <div class="erid-keyboard">
+          <button class="erid-key" onclick="insertEridTime('ℓ')">ℓ<span class="hint">0</span></button>
+          <button class="erid-key" onclick="insertEridTime('I')">I<span class="hint">1</span></button>
+          <button class="erid-key" onclick="insertEridTime('V')">V<span class="hint">2</span></button>
+          <button class="erid-key" onclick="insertEridTime('λ')">λ<span class="hint">3</span></button>
+          <button class="erid-key" onclick="insertEridTime('+')">+<span class="hint">4</span></button>
+          <button class="erid-key" onclick="insertEridTime('Ɐ')">Ɐ<span class="hint">5</span></button>
+        </div>
+      </div>
+
+      <div class="error-msg" id="ti-err"></div>
+      <div id="ti-res" class="result">
+        <div class="result-top">
+          <span class="result-label">Earth time</span>
+          <button class="copy-btn" onclick="copyResult(this,'ti-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div class="date-grid cols5">
+          <span class="dg-val" id="ti-gyr"></span>
+          <span class="dg-val" id="ti-gdy"></span>
+          <span class="dg-val" id="ti-ghr"></span>
+          <span class="dg-val" id="ti-gmn"></span>
+          <span class="dg-val" id="ti-gsc"></span>
+          <span class="dg-lbl">years</span>
+          <span class="dg-lbl">days</span>
+          <span class="dg-lbl">hours</span>
+          <span class="dg-lbl">minutes</span>
+          <span class="dg-lbl">seconds</span>
+        </div>
+        <span id="ti-copy" hidden></span>
+      </div>
+    </div>
+
+  </div><!-- /tab-time -->
+
+
+  <!-- ═══════════════════════════════ WEIGHT TAB ═══════════════════════════════ -->
+  <div id="tab-weight" class="tab-content">
+
+    <details class="info">
+      <summary>About Eridian weight</summary>
+      <p>Erid's gravity is approximately <strong>2.09×</strong> Earth's, so you'd weigh about twice as much on the surface. Unfortunately, there are no canonical Eridian weight units, so these are all in Earth units.</p>
+    </details>
+
+    <p class="section-label">Earth → Erid</p>
+    <div class="card">
+      <div class="card-title">Earth weight → Erid weight</div>
+      <div class="input-row">
+        <div class="field"><label>Weight</label>
+          <input type="number" id="we-in" style="width:130px" placeholder="e.g. 100" oninput="cvtEarthWeight()"></div>
+        <div class="field"><label>Unit</label>
+          <select id="we-unit" onchange="cvtEarthWeight()">
+            <option>kg</option><option>lbs</option>
+          </select></div>
+      </div>
+      <div class="error-msg" id="we-err"></div>
+      <div id="we-res" class="result">
+        <div class="result-top">
+          <span class="result-label">On Erid</span>
+          <button class="copy-btn" onclick="copyResult(this,'we-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div id="we-main" class="result-main"></div>
+        <span id="we-copy" hidden></span>
+      </div>
+    </div>
+
+    <p class="section-label">Erid → Earth</p>
+    <div class="card">
+      <div class="card-title">Erid weight → Earth weight</div>
+      <div class="input-row">
+        <div class="field"><label>Weight</label>
+          <input type="number" id="wi-in" style="width:130px" placeholder="e.g. 100" oninput="cvtEridWeight()"></div>
+        <div class="field"><label>Unit</label>
+          <select id="wi-unit" onchange="cvtEridWeight()">
+            <option>kg</option><option>lbs</option>
+          </select></div>
+      </div>
+      <div class="error-msg" id="wi-err"></div>
+      <div id="wi-res" class="result">
+        <div class="result-top">
+          <span class="result-label">On Earth</span>
+          <button class="copy-btn" onclick="copyResult(this,'wi-copy')" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+          </button>
+        </div>
+        <div id="wi-main" class="result-main"></div>
+        <span id="wi-copy" hidden></span>
+      </div>
+    </div>
+
+  </div><!-- /tab-weight -->
+
+</main>
+
+<script>
+// ── Base conversion ──────────────────────────────────────────────────────────
+
+function decimalToBase6(n) {
+  if (!isFinite(n)) return null;
+  const neg = n < 0;
+  n = Math.abs(n);
+  const intPart = Math.floor(n);
+  let frac = n - intPart;
+
+  let intStr = '';
+  let tmp = intPart;
+  if (tmp === 0) { intStr = '0'; }
+  else { while (tmp > 0) { intStr = (tmp % 6) + intStr; tmp = Math.floor(tmp / 6); } }
+
+  let fracStr = '';
+  let iters = 8;
+  while (frac > 1e-10 && iters-- > 0) {
+    frac *= 6;
+    const d = Math.floor(frac);
+    fracStr += d;
+    frac -= d;
+  }
+
+  return (neg ? '-' : '') + intStr + (fracStr ? '.' + fracStr : '');
+}
+
+function base6ToDecimal(s) {
+  s = String(s).trim();
+  if (!s) return null;
+  const neg = s.startsWith('-');
+  if (neg) s = s.slice(1);
+  if (!/^[0-5]*\.?[0-5]*$/.test(s) || s === '.') return null;
+
+  const [intStr, fracStr = ''] = s.split('.');
+  let val = 0;
+  for (const ch of (intStr || '0')) val = val * 6 + parseInt(ch);
+  let pow = 1/6;
+  for (const ch of fracStr) { val += parseInt(ch) * pow; pow /= 6; }
+  return neg ? -val : val;
+}
+
+// ── Eridian numerals ─────────────────────────────────────────────────────────
+
+const TO_ERID = { '0':'ℓ','1':'I','2':'V','3':'λ','4':'+','5':'Ɐ','.':'•','-':'-' };
+const TO_B6   = { 'ℓ':'0','I':'1','V':'2','λ':'3','+':'4','Ɐ':'5','∀':'5','•':'.','-':'-' };
+
+function b6ToErid(s)  { return String(s).split('').map(c => TO_ERID[c] ?? c).join(''); }
+function eridToB6(s)  { return s.split('').map(c => TO_B6[c] ?? c).join(''); }
+function eridToDec(s) { return base6ToDecimal(eridToB6(s)); }
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function nStr(n) {
+  if (typeof n !== 'number') return String(n);
+  const s = parseFloat(n.toPrecision(10)).toString();
+  return s.endsWith('.0') ? s.slice(0,-2) : s;
+}
+
+function fmt5(v) {
+  return String(Math.abs(Math.round(v))).slice(-5).padStart(5,'0');
+}
+
+function setEl(id, t) { document.getElementById(id).textContent = t; }
+function showRes(id)  { document.getElementById(id).classList.add('show'); }
+function hideRes(id)  { document.getElementById(id).classList.remove('show'); }
+
+function setErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+}
+function clearErr(id) { document.getElementById(id).textContent = ''; }
+
+// ── Copy button ───────────────────────────────────────────────────────────────
+
+const SVG_COPY  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>`;
+const SVG_CHECK = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+function copyResult(btn, sourceId) {
+  const text = document.getElementById(sourceId).textContent.trim();
+  if (!text) return;
+  const finish = () => {
+    btn.innerHTML = SVG_CHECK;
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = SVG_COPY; btn.classList.remove('copied'); }, 1500);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(finish).catch(() => fallbackCopy(text, finish));
+  } else {
+    fallbackCopy(text, finish);
+  }
+}
+
+function fallbackCopy(text, finish) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(_) {}
+  document.body.removeChild(ta);
+  finish();
+}
+
+// ── Number converters ────────────────────────────────────────────────────────
+
+function cvtB10ToErid() {
+  const raw = document.getElementById('n-b10e-in').value.trim();
+  if (!raw) { clearErr('n-b10e-err'); hideRes('n-b10e-res'); return; }
+  const n = parseFloat(raw);
+  if (isNaN(n)) { setErr('n-b10e-err', 'Enter a valid number.'); hideRes('n-b10e-res'); return; }
+  clearErr('n-b10e-err');
+  const erid = b6ToErid(decimalToBase6(n));
+  setEl('n-b10e-big', erid);
+  setEl('n-b10e-copy', erid);
+  showRes('n-b10e-res');
+}
+
+function cvtEridToB10() {
+  const raw = document.getElementById('n-erid-in').value.trim();
+  if (!raw) { clearErr('n-erid-err'); hideRes('n-erid-res'); return; }
+  const b6  = eridToB6(raw);
+  const dec = base6ToDecimal(b6);
+  if (dec === null) { setErr('n-erid-err', 'Unrecognised Eridian numeral.'); hideRes('n-erid-res'); return; }
+  clearErr('n-erid-err');
+  const out = nStr(dec);
+  setEl('n-erid-main', out);
+  setEl('n-erid-copy', out);
+  showRes('n-erid-res');
+}
+
+function cvtB10ToB6() {
+  const raw = document.getElementById('n-b6-in').value.trim();
+  if (!raw) { clearErr('n-b6-err'); hideRes('n-b6-res'); return; }
+  const n = parseFloat(raw);
+  if (isNaN(n)) { setErr('n-b6-err', 'Enter a valid number.'); hideRes('n-b6-res'); return; }
+  clearErr('n-b6-err');
+  const out = decimalToBase6(n);
+  setEl('n-b6-main', out);
+  setEl('n-b6-copy', out);
+  showRes('n-b6-res');
+}
+
+function cvtB6ToB10() {
+  const raw = document.getElementById('n-b10-in').value.trim();
+  if (!raw) { clearErr('n-b10-err'); hideRes('n-b10-res'); return; }
+  const dec = base6ToDecimal(raw);
+  if (dec === null) { setErr('n-b10-err', 'Only digits 0–5 are valid in base-6.'); hideRes('n-b10-res'); return; }
+  clearErr('n-b10-err');
+  const out = nStr(dec);
+  setEl('n-b10-main', out);
+  setEl('n-b10-copy', out);
+  showRes('n-b10-res');
+}
+
+// ── Time converters ──────────────────────────────────────────────────────────
+
+const ERID_DAY_S  = 18360.0;
+const ERID_YEAR_S = 199 * ERID_DAY_S;
+const ERID_SEC_S  = 2.366;
+
+function cvtEarthToErid() {
+  const y = parseFloat(document.getElementById('te-y').value) || 0;
+  const d = parseFloat(document.getElementById('te-d').value) || 0;
+  const h = parseFloat(document.getElementById('te-h').value) || 0;
+  const m = parseFloat(document.getElementById('te-m').value) || 0;
+  const s = parseFloat(document.getElementById('te-s').value) || 0;
+  const total = s + m*60 + h*3600 + d*86400 + y*31557600;
+
+  const eYears = Math.floor(total / ERID_YEAR_S);
+  let rem      = total % ERID_YEAR_S;
+  const eDays  = Math.floor(rem / ERID_DAY_S);
+  rem          = rem % ERID_DAY_S;
+  const eSecs  = Math.floor(rem / ERID_SEC_S);
+
+  const es5  = fmt5(parseFloat(decimalToBase6(eSecs)));
+  const esE  = b6ToErid(es5);
+  const eyE  = b6ToErid(decimalToBase6(eYears));
+  const edE  = b6ToErid(decimalToBase6(eDays));
+
+  const hE = esE[0], ccE = esE[1]+esE[2], sE = esE[3]+esE[4];
+  const h6 = es5[0], cc6 = es5.slice(1,3), s6 = es5.slice(3,5);
+  const h10  = nStr(base6ToDecimal(h6));
+  const cc10 = nStr(base6ToDecimal(cc6));
+  const s10  = nStr(base6ToDecimal(s6));
+
+  setEl('te-gyr', eyE);
+  setEl('te-gdy', edE);
+  setEl('te-ghr', hE);
+  setEl('te-gcc', ccE);
+  setEl('te-gsc', sE);
+
+  const compact = `${eyE}-${edE} ${hE}:${ccE}:${sE}`;
+  setEl('te-copy', compact);
+  setEl('te-b10-yr', nStr(eYears));              setEl('te-b10-dy', nStr(eDays));
+  setEl('te-b10-hr', h10);                       setEl('te-b10-cc', cc10);   setEl('te-b10-sc', s10);
+  setEl('te-b6-yr',  nStr(decimalToBase6(eYears))); setEl('te-b6-dy', nStr(decimalToBase6(eDays)));
+  setEl('te-b6-hr',  h6);                        setEl('te-b6-cc', cc6);     setEl('te-b6-sc', s6);
+  showRes('te-res');
+}
+
+function cvtEridToEarth() {
+  const useErid = document.getElementById('erid-toggle').checked;
+  let ey, ed, eh, ec, es;
+
+  if (useErid) {
+    const get = id => { const v = document.getElementById(id).value.trim(); return v ? eridToDec(v) : 0; };
+    ey = get('ti-y-e'); ed = get('ti-d-e');
+    eh = get('ti-h-e'); ec = get('ti-c-e'); es = get('ti-s-e');
+  } else {
+    const n = id => parseFloat(document.getElementById(id).value) || 0;
+    ey = n('ti-y'); ed = n('ti-d');
+    eh = n('ti-h'); ec = n('ti-c'); es = n('ti-s');
+  }
+
+  if ([ey,ed,eh,ec,es].some(v => v === null)) {
+    setErr('ti-err', 'Unrecognised Eridian numeral.');
+    hideRes('ti-res');
+    return;
+  }
+  clearErr('ti-err');
+
+  // 1 erid-hr = 36 centihrs × 36 secs = 1296 erid-secs
+  const eSecs = eh * 1296 + ec * 36 + es;
+  const total = ey * 3650031 + ed * 18360 + eSecs * ERID_SEC_S;
+
+  const earthY = Math.floor(total / 31557600);
+  let rem      = total % 31557600;
+  const earthD = Math.floor(rem / 86400);  rem = rem % 86400;
+  const earthH = Math.floor(rem / 3600);   rem = rem % 3600;
+  const earthM = Math.floor(rem / 60);
+  const earthS = Math.round((rem % 60) * 10) / 10;
+
+  setEl('ti-gyr', nStr(earthY));
+  setEl('ti-gdy', nStr(earthD));
+  setEl('ti-ghr', nStr(earthH));
+  setEl('ti-gmn', nStr(earthM));
+  setEl('ti-gsc', nStr(earthS));
+  setEl('ti-copy', `${nStr(earthY)}y ${nStr(earthD)}d ${nStr(earthH)}:${nStr(earthM)}:${nStr(earthS)}`);
+  showRes('ti-res');
+}
+
+// ── Weight converters ────────────────────────────────────────────────────────
+
+function cvtEarthWeight() {
+  const w = parseFloat(document.getElementById('we-in').value);
+  const u = document.getElementById('we-unit').value;
+  if (isNaN(w)) { clearErr('we-err'); hideRes('we-res'); return; }
+  clearErr('we-err');
+  const out = `${nStr(Math.round(w * 2.09 * 100) / 100)} ${u}`;
+  setEl('we-main', out);
+  setEl('we-copy', out);
+  showRes('we-res');
+}
+
+function cvtEridWeight() {
+  const w = parseFloat(document.getElementById('wi-in').value);
+  const u = document.getElementById('wi-unit').value;
+  if (isNaN(w)) { clearErr('wi-err'); hideRes('wi-res'); return; }
+  clearErr('wi-err');
+  const out = `${nStr(Math.round(w / 2.09 * 100) / 100)} ${u}`;
+  setEl('wi-main', out);
+  setEl('wi-copy', out);
+  showRes('wi-res');
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────────
+
+function showTab(tab, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+function insertChar(inputId, ch, callback) {
+  const el = document.getElementById(inputId);
+  const a = el.selectionStart, b = el.selectionEnd;
+  el.value = el.value.slice(0, a) + ch + el.value.slice(b);
+  el.selectionStart = el.selectionEnd = a + ch.length;
+  el.focus();
+  callback();
+}
+
+let lastEridTimeInput = 'ti-y-e';
+['ti-y-e','ti-d-e','ti-h-e','ti-c-e','ti-s-e'].forEach(id => {
+  document.getElementById(id).addEventListener('focus', () => { lastEridTimeInput = id; });
+});
+
+function insertEridTime(ch) {
+  insertChar(lastEridTimeInput, ch, cvtEridToEarth);
+}
+
+function toggleEridMode() {
+  const on = document.getElementById('erid-toggle').checked;
+  document.getElementById('erid-b10-inputs').style.display  = on ? 'none'  : 'block';
+  document.getElementById('erid-erid-inputs').style.display = on ? 'block' : 'none';
+  clearErr('ti-err');
+  hideRes('ti-res');
+}
+</script>
+</body>
+</html>
