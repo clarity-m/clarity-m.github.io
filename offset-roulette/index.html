@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offset Roulette</title>
+<style>
+  :root {
+    --ground:   #E7ECE9;
+    --surface:  #F5F8F6;
+    --surface-2:#EDF1EE;
+    --ink:      #172420;
+    --ink-soft: #566159;
+    --ink-faint:#8A968E;
+    --line:     #D2DAD5;
+    --brass:    #9A6A22;
+    --brass-lo: #7C5417;
+    --good:     #2E7D5B;
+
+    --c1:#26786C; --c2:#A66E2A; --c3:#A44B34; --c4:#6F4374; --c5:#5E6A31; --c6:#37628A;
+
+    --serif: "Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans:  system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:  "Cascadia Code",ui-monospace,"SF Mono","Consolas","DejaVu Sans Mono",monospace;
+
+    --r: 12px;
+    --shadow: 0 1px 2px rgba(20,30,26,.06), 0 12px 34px -18px rgba(20,30,26,.30);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0D1412; --surface:#151F1C; --surface-2:#1B2723; --ink:#E7ECE9;
+      --ink-soft:#9DA9A2; --ink-faint:#67736C; --line:#263330; --brass:#D6A24E;
+      --brass-lo:#E2B266; --good:#56C08B;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground:#E7ECE9; --surface:#F5F8F6; --surface-2:#EDF1EE; --ink:#172420;
+    --ink-soft:#566159; --ink-faint:#8A968E; --line:#D2DAD5; --brass:#9A6A22;
+    --brass-lo:#7C5417; --good:#2E7D5B;
+    --shadow:0 1px 2px rgba(20,30,26,.06),0 12px 34px -18px rgba(20,30,26,.30);
+  }
+  :root[data-theme="dark"] {
+    --ground:#0D1412; --surface:#151F1C; --surface-2:#1B2723; --ink:#E7ECE9;
+    --ink-soft:#9DA9A2; --ink-faint:#67736C; --line:#263330; --brass:#D6A24E;
+    --brass-lo:#E2B266; --good:#56C08B;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: clamp(20px,4vw,52px) clamp(16px,4vw,32px) 64px; }
+
+  /* header */
+  header { margin-bottom: 30px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 10px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(34px,6vw,54px);
+    line-height: 1.02; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  .thesis { margin: 14px 0 0; max-width: 62ch; color: var(--ink-soft);
+    font-size: clamp(15px,2vw,17px); text-wrap: pretty; }
+  .thesis b { color: var(--ink); font-weight: 600; }
+
+  /* grid */
+  .grid { display: grid; grid-template-columns: 1fr 0.92fr; gap: 20px; align-items: start; }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+    box-shadow: var(--shadow); padding: 22px; }
+  .card h2 { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 0 0 4px;
+    letter-spacing: -0.01em; }
+  .card .sub { color: var(--ink-faint); font-size: 13px; margin: 0 0 18px; }
+
+  /* mode toggle */
+  .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 3px; gap: 3px; margin-bottom: 14px; }
+  .seg button { font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+    border: none; background: transparent; color: var(--ink-soft); padding: 6px 14px; border-radius: 6px;
+    transition: background .15s ease, color .15s ease; }
+  .seg button.on { background: var(--ink); color: var(--ground); }
+
+  /* input row */
+  .adder { display: grid; grid-template-columns: 1.4fr .8fr .9fr auto; gap: 8px; margin-bottom: 12px; }
+  .adder.cost { grid-template-columns: 1.4fr 1fr auto; }
+  .adder.cost .unit-field { display: none; }
+  @media (max-width: 460px) { .adder, .adder.cost { grid-template-columns: 1fr 1fr; } }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 11px;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); font-family: var(--mono); }
+  select, input[type="number"] { font-family: var(--sans); font-size: 15px; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; }
+  input[type="number"] { font-family: var(--mono); appearance: textfield; -moz-appearance: textfield; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  select:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--brass); outline-offset: 2px; }
+  .btn { font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); padding: 9px 14px;
+    transition: transform .06s ease, background .15s ease; }
+  .btn:hover { background: var(--ground); }
+  .btn:active { transform: translateY(1px); }
+  .btn.add { align-self: end; background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .btn.add:hover { background: var(--brass); border-color: var(--brass); color: #fff; }
+
+  /* ledger table */
+  .ledger-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint); text-align: right; font-weight: 500; padding: 0 8px 8px; border-bottom: 1px solid var(--line); }
+  thead th:first-child { text-align: left; }
+  tbody td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+  tbody td:first-child { text-align: left; font-weight: 500; }
+  tbody td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .sev { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; vertical-align: middle; }
+  .rm { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 17px; line-height: 1;
+    padding: 2px 4px; border-radius: 5px; }
+  .rm:hover { color: var(--c3); background: var(--surface-2); }
+  .empty { color: var(--ink-faint); font-size: 14px; text-align: center; padding: 26px 0; font-style: italic; }
+
+  /* tax slider */
+  .tax { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .tax-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .tax-head .lab { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-soft); }
+  .tax-head .val { font-family: var(--mono); font-size: 13px; color: var(--brass); font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: var(--brass); }
+  .tax-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); margin-top: 2px; }
+  .surcharge { font-size: 12.5px; color: var(--ink-faint); margin-top: 10px; }
+  .surcharge b { color: var(--ink-soft); font-family: var(--mono); }
+
+  .total-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px;
+    padding-top: 16px; border-top: 2px solid var(--ink); }
+  .total-row .lab { font-family: var(--mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-soft); }
+  .total-row .lab small { display: block; text-transform: none; letter-spacing: 0; color: var(--ink-faint);
+    font-size: 11px; margin-top: 2px; }
+  .total-row .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 600;
+    color: var(--brass); letter-spacing: -0.01em; text-align: right; }
+  .total-row .amt small { display: block; font-size: 11px; color: var(--ink-faint); font-weight: 400; }
+
+  /* wheel */
+  .wheelcard { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .wheel-stage { position: relative; width: min(320px,78vw); aspect-ratio: 1; margin: 6px 0 4px; }
+  .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); z-index: 3; width: 0; height: 0;
+    border-left: 13px solid transparent; border-right: 13px solid transparent; border-top: 22px solid var(--brass);
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,.28)); }
+  .hub { position: absolute; top: 50%; left: 50%; width: 46px; height: 46px; transform: translate(-50%,-50%);
+    background: var(--surface); border: 3px solid var(--brass); border-radius: 50%; z-index: 2; display: grid;
+    place-items: center; font-family: var(--serif); font-weight: 600; color: var(--brass); box-shadow: var(--shadow); font-size: 15px; }
+  svg.wheel { width: 100%; height: 100%; display: block; border-radius: 50%; box-shadow: 0 8px 30px -8px rgba(0,0,0,.35); }
+  #wheelGroup { transition: transform 4.6s cubic-bezier(.16,.84,.28,1); transform-origin: 150px 150px; }
+  .seg-name { font-family: var(--sans); font-weight: 700; font-size: 10px; fill: #FBFBF9; letter-spacing: .01em; }
+  .seg-mult { font-family: var(--mono); font-weight: 700; font-size: 14px; fill: #FBFBF9; }
+  @media (prefers-reduced-motion: reduce) { #wheelGroup { transition: none; } }
+
+  .spinbtn { font-family: var(--serif); font-size: 18px; font-weight: 600; letter-spacing: .01em; cursor: pointer;
+    border: none; border-radius: 10px; color: #fff; background: linear-gradient(180deg,var(--brass),var(--brass-lo));
+    padding: 13px 34px; margin-top: 14px; box-shadow: var(--shadow); transition: transform .07s ease, filter .15s ease; }
+  .spinbtn:hover { filter: brightness(1.06); }
+  .spinbtn:active { transform: translateY(1px); }
+  .spinbtn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.3); }
+  .oddsnote { font-size: 12px; color: var(--ink-faint); margin-top: 10px; font-family: var(--mono); }
+
+  /* result */
+  .result { margin-top: 16px; width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
+    padding: 16px 18px; text-align: left; opacity: 0; visibility: hidden; transform: translateY(6px);
+    transition: opacity .4s ease, transform .4s ease, visibility 0s linear .4s; }
+  .result.show { opacity: 1; visibility: visible; transform: none;
+    transition: opacity .4s ease, transform .4s ease; }
+  .result .r-lab { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+  .result .r-charity { font-family: var(--serif); font-size: 22px; font-weight: 600; margin: 2px 0 2px; display: flex; align-items: center; gap: 9px; }
+  .result .r-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .result .r-desc { font-size: 13px; color: var(--ink-soft); margin: 0 0 12px; }
+  .result .r-amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 600;
+    color: var(--good); letter-spacing: -0.01em; }
+  .result .r-mult { font-family: var(--mono); font-size: 12px; color: var(--brass); margin-left: 8px; }
+  .result .r-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .result a.give { font-family: var(--sans); font-weight: 600; font-size: 14px; text-decoration: none;
+    background: var(--good); color: #fff; padding: 9px 16px; border-radius: 8px; }
+  .result a.give:hover { filter: brightness(1.07); }
+
+  /* pledge log */
+  .full { margin-top: 20px; }
+  .log-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .log-head .clear { font-family: var(--sans); font-size: 12.5px; background: none; border: none; color: var(--ink-faint);
+    cursor: pointer; text-decoration: underline; }
+  .log-item { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 4px;
+    border-bottom: 1px solid var(--line); font-size: 14px; }
+  .log-item .dot { width: 9px; height: 9px; border-radius: 3px; }
+  .log-item .to { font-weight: 500; }
+  .log-item .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--good); font-weight: 600; }
+  .log-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; padding-top: 12px;
+    border-top: 2px solid var(--ink); }
+  .log-total .lab { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .log-total .val { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--good); }
+  .log-empty { color: var(--ink-faint); font-style: italic; font-size: 14px; padding: 8px 0; }
+
+  /* disclosure */
+  details { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  summary { cursor: pointer; padding: 14px 18px; font-family: var(--sans); font-weight: 600; font-size: 14px; list-style: none;
+    display: flex; align-items: center; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "›"; font-family: var(--mono); color: var(--brass); font-size: 18px; transition: transform .2s ease; display: inline-block; }
+  details[open] summary::before { transform: rotate(90deg); }
+  .panel-body { padding: 0 18px 18px; font-size: 14px; color: var(--ink-soft); }
+  .panel-body table { margin-top: 6px; }
+  .panel-body p { margin: 0 0 10px; max-width: 68ch; }
+  .panel-body strong { color: var(--ink); }
+  .weight-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 10px; font-style: italic; }
+
+  footer { margin-top: 34px; font-size: 12.5px; color: var(--ink-faint); text-align: center; }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink);
+    color: var(--ground); padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0;
+    transition: all .25s ease; pointer-events: none; z-index: 20; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Offset Roulette</h1>
+    <p class="thesis">Enforcing an economic incentive against meat consumption. Log a meal and spin for a bill to animal charity. Expected cost scales with suffering.
+      <b>Shrimp, chicken and eggs cost far more than beef.</b> </p>
+  </header>
+
+  <div class="grid">
+    <!-- LEDGER -->
+    <section class="card">
+
+      <div class="seg" id="modeToggle">
+        <button data-mode="weight" class="on" type="button">By weight</button>
+        <button data-mode="cost" type="button">By price</button>
+      </div>
+
+      <div class="adder" id="adder">
+        <label class="field">Type
+          <select id="type"></select>
+        </label>
+        <label class="field" id="amtField">Amount
+          <input type="number" id="qty" value="0.2" min="0" step="0.05" inputmode="decimal">
+        </label>
+        <label class="field unit-field">Unit
+          <select id="unit">
+            <option value="kg">kg</option>
+            <option value="lb">lb</option>
+            <option value="serving">servings</option>
+            <option value="piece">pieces</option>
+          </select>
+        </label>
+        <button class="btn add" id="addBtn" type="button">Add</button>
+      </div>
+
+      <div class="ledger-scroll">
+        <table>
+          <thead>
+            <tr><th>Item</th><th>Amount</th><th>Suffering</th><th>Base</th><th></th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="tax">
+        <div class="tax-head">
+          <span class="lab">Tax strength</span>
+          <span class="val" id="rateVal">$0.15 / point</span>
+        </div>
+        <input type="range" id="rate" min="2" max="20" value="15" step="1">
+        <div class="tax-scale"><span>gentle nudge</span><span>real deterrent</span></div>
+        <p class="surcharge" id="surcharge"></p>
+      </div>
+
+      <div class="total-row">
+        <span class="lab">Expected bill<small>your utility-vs-cost number</small></span>
+        <span class="amt" id="expected">$0.00<small id="baseLine"></small></span>
+      </div>
+    </section>
+
+    <!-- WHEEL -->
+    <section class="card wheelcard">
+      <div class="wheel-stage">
+        <div class="pointer"></div>
+        <svg class="wheel" viewBox="0 0 300 300" aria-label="Charity wheel">
+          <g id="wheelGroup"></g>
+        </svg>
+        <div class="hub">$</div>
+      </div>
+
+      <button class="spinbtn" id="spinBtn" type="button">Spin</button>
+      <p class="oddsnote" id="oddsnote"></p>
+
+      <div class="result" id="result" aria-live="polite">
+        <span class="r-lab">The bill</span>
+        <div class="r-charity"><span class="r-swatch" id="rSwatch"></span><span id="rCharity"></span></div>
+        <p class="r-desc" id="rDesc"></p>
+        <div><span class="r-amt" id="rAmt">$0.00</span><span class="r-mult" id="rMult"></span></div>
+        <div class="r-actions">
+          <a class="give" id="rGive" href="#" target="_blank" rel="noopener">Pay it →</a>
+          <button class="btn" id="copyBtn" type="button">Copy</button>
+          <button class="btn" id="clearBtn" type="button">Clear</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- PLEDGE LOG 
+  <section class="card full">
+    <div class="log-head">
+      <h2 style="margin:0;font-family:var(--serif);font-size:20px;">Billed this session</h2>
+      <button class="clear" id="clearLog" type="button">Clear</button>
+    </div>
+    <div id="logList"></div>
+    <div class="log-total">
+      <span class="lab">Total owed</span>
+      <span class="val" id="logTotal">$0.00</span>
+    </div>
+  </section>-->
+
+  <!-- ASSUMPTIONS -->
+  <details>
+    <summary>How the bill is built (and how rough it is)</summary>
+    <div class="panel-body">
+      <p>Each type carries a rough <strong>suffering score per kg</strong> weighting the number of animals
+        and the severity of typical farmed conditions. The <strong>base</strong> is that score × kg × your
+        tax rate. In price mode, weight is inferred from a typical retail $/kg — so cheap-per-kg meats
+        (chicken, eggs) imply <em>more</em> animals per dollar and get taxed hardest.</p>
+      <div class="ledger-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Suffering / kg</th><th>~ $/kg retail</th><th>Harm / $</th></tr></thead>
+          <tbody id="assumeRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <!-- HONESTY 
+  <details>
+    <summary>Why a tax, not an offset</summary>
+    <div class="panel-body">
+      <p>An <em>offset</em> invites the trap of <strong>moral licensing</strong> — feeling absolved, you eat
+        more, and net suffering climbs. A <strong>tax</strong> is licensing-proof: the whole design is that
+        it <em>costs</em> you, so it pushes the same direction as eating less. The number that matters for
+        your choice is the <strong>expected bill</strong> — set the tax strength until that figure actually
+        changes what you order.</p>
+      <p>Two things dominate the math anyway: <strong>shift toward the cheap-suffering types</strong> (beef
+        and lamb over chicken, eggs, fish, shrimp — the table shows why), and remember the money does real
+        good <strong>whether or not you ate</strong>. The wheel just removes the friction that was your last
+        excuse not to give.</p>
+    </div>
+  </details>-->
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var LB = 0.45359237;
+
+  // pts = suffering score / kg ; price = typical retail $/kg ; serv = kg / serving
+  // each = kg per piece (steak, chop, breast, fillet, egg, shrimp...)
+  var TYPES = {
+    beef:    { label: "Beef",        pts: 8,  price: 13, serv: 0.17, each: 0.25  },
+    lamb:    { label: "Lamb",        pts: 12, price: 18, serv: 0.15, each: 0.10  },
+    dairy:   { label: "Dairy",       pts: 6,  price: 4,  serv: 0.20, each: 0.20  },
+    pork:    { label: "Pork",        pts: 25, price: 9,  serv: 0.15, each: 0.20  },
+    turkey:  { label: "Turkey",      pts: 40, price: 11, serv: 0.15, each: 0.15  },
+    chicken: { label: "Chicken",     pts: 55, price: 8,  serv: 0.15, each: 0.20  },
+    eggs:    { label: "Eggs",        pts: 60, price: 5,  serv: 0.10, each: 0.05  },
+    fish:    { label: "Farmed fish", pts: 70, price: 16, serv: 0.15, each: 0.18  },
+    shrimp:  { label: "Shrimp",      pts: 90, price: 22, serv: 0.10, each: 0.012 }
+  };
+  var ORDER = ["beef","lamb","dairy","pork","turkey","chicken","eggs","fish","shrimp"];
+
+  // wheel wedges: charity + color; multipliers live in MULTS and are re-dealt each spin
+  var CHARITIES = [
+    { name: "The Humane League",       short: "Humane League", hex: "#26786C",
+      desc: "Corporate campaigns ending the worst cage and broiler conditions.",
+      url: "https://thehumaneleague.org/donate" },
+    { name: "Shrimp Welfare Project",  short: "Shrimp Welfare", hex: "#A66E2A",
+      desc: "Vast numbers, almost no protection — extreme cost-effectiveness.",
+      url: "https://www.shrimpwelfareproject.org/donate" },
+    { name: "Fish Welfare Initiative", short: "Fish Welfare",   hex: "#A44B34",
+      desc: "Better conditions and slaughter for farmed fish at scale.",
+      url: "https://www.fishwelfareinitiative.org/donate" },
+    { name: "Wild Animal Initiative",  short: "Wild Animal",    hex: "#6F4374",
+      desc: "Research into reducing suffering in wild animal populations.",
+      url: "https://www.wildanimalinitiative.org/donate" },
+    { name: "Faunalytics",             short: "Faunalytics",    hex: "#5E6A31",
+      desc: "Data and research that makes the whole movement more effective.",
+      url: "https://faunalytics.org/donate" },
+    { name: "EA Animal Welfare Fund",  short: "AW Fund",        hex: "#37628A",
+      desc: "Expert grantmakers route your gift to the current best bets.",
+      url: "https://www.givingwhatwecan.org/charities/effective-animal-advocacy-fund" }
+  ];
+
+  // one multiplier per wedge, dealt onto the charities fresh each spin;
+  // all math and copy derives from MULTS so edits can't desync
+  var MULTS = [0.5, 0.75, 1, 1.25, 1.5, 2.5];
+  var MEAN_MULT = MULTS.reduce(function (s, m) { return s + m; }, 0) / MULTS.length;
+  var MIN_MULT = Math.min.apply(null, MULTS);
+  var MAX_MULT = Math.max.apply(null, MULTS);
+  function fmtMult(m) { return "×" + parseFloat(m.toFixed(2)); }
+
+  var items = [];   // {type, kg, src}
+  var log = [];      // {name, hex, url, amount}
+  var mode = "weight";
+  var qtyByMode = { weight: "0.2", cost: "10" };
+  var rate = 0.15;
+  var currentRot = 0;
+  var spinning = false;
+  var spinTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (n) { return "$" + n.toFixed(2); };
+
+  // ---- persistence ----
+  var STORE = "offsetRoulette.v1";
+  function save() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({ items: items, log: log, rate: rate }));
+    } catch (e) { /* private mode etc. — session-only, same as before */ }
+  }
+  function load() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORE) || "null");
+      if (!s) return;
+      if (Array.isArray(s.items)) {
+        items = s.items.filter(function (it) { return it && TYPES[it.type] && it.kg > 0; });
+      }
+      if (Array.isArray(s.log)) {
+        log = s.log.filter(function (p) { return p && p.name && p.url && p.amount > 0; });
+      }
+      if (typeof s.rate === "number" && s.rate >= 0.02 && s.rate <= 0.20) rate = s.rate;
+    } catch (e) { /* corrupt store — start fresh */ }
+  }
+
+  // ---- static UI ----
+  var typeSel = $("type");
+  ORDER.forEach(function (k) {
+    var o = document.createElement("option");
+    o.value = k; o.textContent = TYPES[k].label; typeSel.appendChild(o);
+  });
+  typeSel.value = "chicken";
+
+  var assumeRows = $("assumeRows");
+  ORDER.forEach(function (k) {
+    var t = TYPES[k];
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + t.label + "</td><td class='num'>" + t.pts + "</td>" +
+      "<td class='num'>$" + t.price + "</td><td class='num'>" + (t.pts / t.price).toFixed(1) + "</td>";
+    assumeRows.appendChild(tr);
+  });
+
+  // ---- wheel ----
+  var N = CHARITIES.length, SEG = 360 / N, R = 150, CX = 150, CY = 150;
+  var g = $("wheelGroup");
+  function pt(deg, r) { var a = (deg - 90) * Math.PI / 180; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; }
+  function svgEl(tag) { return document.createElementNS("http://www.w3.org/2000/svg", tag); }
+  var multTexts = [];
+  CHARITIES.forEach(function (c, i) {
+    var a0 = i * SEG, a1 = (i + 1) * SEG, p0 = pt(a0, R), p1 = pt(a1, R);
+    var path = svgEl("path");
+    path.setAttribute("d", "M" + CX + "," + CY + " L" + p0[0].toFixed(2) + "," + p0[1].toFixed(2) +
+      " A" + R + "," + R + " 0 0 1 " + p1[0].toFixed(2) + "," + p1[1].toFixed(2) + " Z");
+    path.setAttribute("fill", c.hex);
+    path.setAttribute("stroke", "rgba(255,255,255,.14)");
+    g.appendChild(path);
+
+    var mid = a0 + SEG / 2;
+    var np = pt(mid, R * 0.72), mp = pt(mid, R * 0.46);
+    var name = svgEl("text");
+    name.setAttribute("x", np[0].toFixed(2)); name.setAttribute("y", np[1].toFixed(2));
+    name.setAttribute("text-anchor", "middle"); name.setAttribute("dominant-baseline", "middle");
+    name.setAttribute("class", "seg-name");
+    name.setAttribute("transform", "rotate(" + mid + "," + np[0].toFixed(2) + "," + np[1].toFixed(2) + ")");
+    name.textContent = c.short;
+    g.appendChild(name);
+
+    var mult = svgEl("text");
+    mult.setAttribute("x", mp[0].toFixed(2)); mult.setAttribute("y", mp[1].toFixed(2));
+    mult.setAttribute("text-anchor", "middle"); mult.setAttribute("dominant-baseline", "middle");
+    mult.setAttribute("class", "seg-mult");
+    mult.setAttribute("transform", "rotate(" + mid + "," + mp[0].toFixed(2) + "," + mp[1].toFixed(2) + ")");
+    multTexts.push(mult); // text filled by dealMults
+    g.appendChild(mult);
+  });
+
+  var assign = MULTS.slice(); // assign[i] = multiplier currently on wedge i
+  function dealMults() {
+    for (var j = assign.length - 1; j > 0; j--) {
+      var k = Math.floor(Math.random() * (j + 1));
+      var tmp = assign[j]; assign[j] = assign[k]; assign[k] = tmp;
+    }
+    assign.forEach(function (m, idx) { multTexts[idx].textContent = fmtMult(m); });
+  }
+
+  // ---- model ----
+  function itemPts(it) { return TYPES[it.type].pts * it.kg; }
+  function itemBase(it) { return itemPts(it) * rate; }
+  function baseTotal() { return items.reduce(function (s, it) { return s + itemBase(it); }, 0); }
+
+  function sevColor(pts) {
+    if (pts <= 8) return "var(--c1)";
+    if (pts <= 25) return "var(--c5)";
+    if (pts <= 55) return "var(--c2)";
+    return "var(--c3)";
+  }
+
+  function resetSpin() {
+    clearTimeout(spinTimer); spinTimer = null;
+    spinning = false;
+    $("result").classList.remove("show");
+  }
+
+  function renderLedger() {
+    var rows = $("rows"); rows.innerHTML = "";
+    if (!items.length) {
+      rows.innerHTML = "<tr><td colspan='5' class='empty'>Nothing logged yet — add a staple above.</td></tr>";
+    } else {
+      items.forEach(function (it, idx) {
+        var t = TYPES[it.type];
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td><span class='sev' style='background:" + sevColor(t.pts) + "'></span>" + t.label + "</td>" +
+          "<td class='num'>" + it.src + "</td>" +
+          "<td class='num'>" + Math.round(itemPts(it)) + "</td>" +
+          "<td class='num'>" + money(itemBase(it)) + "</td>" +
+          "<td><button class='rm' title='Remove' data-i='" + idx + "' type='button'>×</button></td>";
+        rows.appendChild(tr);
+      });
+    }
+    var base = baseTotal();
+    $("expected").firstChild.nodeValue = money(base * MEAN_MULT);
+    $("baseLine").textContent = "base " + money(base) + " · avg " + fmtMult(MEAN_MULT);
+    $("spinBtn").disabled = base <= 0 || spinning;
+    $("oddsnote").textContent = base > 0
+      ? "range " + money(base * MIN_MULT) + " – " + money(base * MAX_MULT) + " this spin"
+      : "";
+    Array.prototype.forEach.call(rows.querySelectorAll(".rm"), function (b) {
+      b.addEventListener("click", function () {
+        resetSpin();
+        items.splice(parseInt(b.getAttribute("data-i"), 10), 1); renderLedger();
+      });
+    });
+    save();
+  }
+
+  function renderRate() {
+    $("rateVal").textContent = money(rate) + " / point";
+    var ch = (TYPES.chicken.pts / TYPES.chicken.price) * rate * MEAN_MULT * 100;
+    var bf = (TYPES.beef.pts / TYPES.beef.price) * rate * MEAN_MULT * 100;
+    $("surcharge").innerHTML = "At this strength a chicken meal carries a <b>" + Math.round(ch) +
+      "%</b> surcharge; beef only <b>" + Math.round(bf) + "%</b>.";
+  }
+
+  // ---- mode toggle ----
+  Array.prototype.forEach.call($("modeToggle").children, function (btn) {
+    btn.addEventListener("click", function () {
+      var next = btn.getAttribute("data-mode");
+      if (next === mode) return;
+      qtyByMode[mode] = $("qty").value;
+      mode = next;
+      Array.prototype.forEach.call($("modeToggle").children, function (b) { b.classList.toggle("on", b === btn); });
+      var adder = $("adder"), qty = $("qty");
+      if (mode === "cost") {
+        adder.classList.add("cost");
+        $("amtField").firstChild.nodeValue = "Spend ($)";
+        qty.step = "1"; qty.min = "0";
+      } else {
+        adder.classList.remove("cost");
+        $("amtField").firstChild.nodeValue = "Amount";
+        qty.step = "0.05";
+      }
+      qty.value = qtyByMode[mode];
+    });
+  });
+
+  function addItem() {
+    var type = typeSel.value, q = parseFloat($("qty").value), t = TYPES[type];
+    if (!(q > 0)) { toast("Enter an amount above zero."); return; }
+    var kg, src;
+    if (mode === "cost") { kg = q / t.price; src = "$" + q.toFixed(2); }
+    else {
+      var unit = $("unit").value;
+      kg = unit === "kg" ? q
+         : unit === "lb" ? q * LB
+         : unit === "piece" ? q * t.each
+         : q * t.serv;
+      src = unit === "serving" ? q + (q === 1 ? " serv" : " servs")
+          : unit === "piece"   ? q + (q === 1 ? " pc" : " pcs")
+          : unit === "lb"      ? q + " lb"
+          : q + " kg";
+    }
+    resetSpin();
+    items.push({ type: type, kg: kg, src: src });
+    renderLedger();
+  }
+  $("addBtn").addEventListener("click", addItem);
+  $("qty").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); addItem(); }
+  });
+
+  $("rate").addEventListener("input", function () {
+    rate = parseInt(this.value, 10) / 100;
+    renderRate(); renderLedger();
+  });
+
+  // ---- spin ----
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("show"); }, 1900);
+  }
+
+  $("spinBtn").addEventListener("click", function () {
+    var base = baseTotal();
+    if (base <= 0 || spinning) return;
+    spinning = true; $("spinBtn").disabled = true;
+    $("result").classList.remove("show");
+    dealMults(); // fresh board this round
+
+    var i = Math.floor(Math.random() * N);
+    var jitter = (Math.random() - 0.5) * SEG * 0.6;
+    var target = -((i + 0.5) * SEG) + jitter;
+    var delta = (((target - currentRot) % 360) + 360) % 360;
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var dur = 1.6 + Math.random() * 1.0;           // spin length varies: 1.6–2.6 s
+    var turns = 6 + Math.floor(Math.random() * 4); // 6–9 full revolutions
+    var finalRot = currentRot + (reduce ? 0 : turns * 360) + delta;
+    currentRot = finalRot;
+    if (!reduce) g.style.transition = "transform " + dur.toFixed(2) + "s cubic-bezier(.16,.84,.28,1)";
+    g.style.transform = "rotate(" + finalRot + "deg)";
+
+    var c = CHARITIES[i];
+    var m = assign[i];
+    var amount = Math.ceil(base * m * 100) / 100;
+    var billed = items.slice(); // the spin consumes exactly what it billed
+
+    var reveal = function () {
+      showResult(c, m, amount, base);
+      items = items.filter(function (it) { return billed.indexOf(it) === -1; });
+      spinning = false;
+      renderLedger();
+      toast("Billed — ledger cleared for the next meal.");
+    };
+    if (reduce) reveal(); else spinTimer = setTimeout(reveal, dur * 1000 + 80);
+  });
+
+  function showResult(c, m, amount, base) {
+    $("rSwatch").style.background = c.hex;
+    $("rCharity").textContent = c.name;
+    $("rDesc").textContent = c.desc;
+    $("rAmt").textContent = money(amount);
+    $("rMult").textContent = fmtMult(m) + " on base " + money(base);
+    $("rGive").href = c.url;
+    $("result").classList.add("show");
+    log.push({ name: c.name, hex: c.hex, url: c.url, amount: amount });
+    renderLog();
+  }
+
+  $("copyBtn").addEventListener("click", function () {
+    var c = $("rCharity").textContent, a = $("rAmt").textContent;
+    var text = "Owe " + a + " to " + c + " for today's meat tax. — Offset Roulette";
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast("Copied."); }, function () { toast(text); });
+    } else { toast(text); }
+  });
+
+  $("clearBtn").addEventListener("click", function () {
+    resetSpin();
+    items = [];
+    renderLedger();
+  });
+
+  // ---- log ----
+  function renderLog() {
+    var wrap = $("logList"); wrap.innerHTML = "";
+    if (!log.length) {
+      wrap.innerHTML = "<div class='log-empty'>No bills yet — the tally fills as you spin.</div>";
+    } else {
+      log.forEach(function (p) {
+        var row = document.createElement("div");
+        row.className = "log-item";
+        row.innerHTML = "<span class='dot' style='background:" + p.hex + "'></span>" +
+          "<a class='to' href='" + p.url + "' target='_blank' rel='noopener' style='color:inherit;text-decoration:none'>" +
+          p.name + "</a><span class='amt'>" + money(p.amount) + "</span>";
+        wrap.appendChild(row);
+      });
+    }
+    var sum = log.reduce(function (s, p) { return s + p.amount; }, 0);
+    $("logTotal").textContent = money(sum);
+    save();
+  }
+  $("clearLog").addEventListener("click", function () { log = []; renderLog(); });
+
+  // ---- init ----
+  $("multList").textContent = MULTS.slice().sort(function (a, b) { return a - b; })
+    .map(function (m) { return fmtMult(m); }).join(" · ");
+  $("multMean").textContent = fmtMult(MEAN_MULT);
+  dealMults();
+  load();
+  $("rate").value = String(Math.round(rate * 100));
+  renderRate();
+  renderLedger();
+  renderLog();
+})();
+</script>
